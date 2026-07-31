@@ -74,6 +74,8 @@ cp .env.example .env
 Обязательные production-значения:
 
 - `BOT_TOKEN` — token от BotFather;
+- `BOT_ENABLED=true` — запуск Telegram polling (значение `false` допустимо только
+  для намеренного API-only режима);
 - `SUPER_ADMIN_IDS` — Telegram ID через запятую;
 - `DATABASE_URL=sqlite+aiosqlite:///data/wb_trainer.db`;
 - `MINI_APP_URL` — публичный HTTPS URL;
@@ -95,6 +97,10 @@ curl http://localhost:8000/health
 
 При старте создаются совместимые таблицы, синхронизируются вопросы, запускаются
 FastAPI и polling бота. Mini App доступен на порту 8000.
+
+Если `BOT_ENABLED=true`, сервис теперь завершает запуск с понятной ошибкой при
+отсутствующем `BOT_TOKEN` (а в production также `MINI_APP_URL`). Это исключает
+ложно успешный деплой, в котором API работает, но бот не получает обновления.
 
 ## Локальная разработка
 
@@ -182,4 +188,3 @@ docker compose start wb-trainer-bot
 путь. Следующими небольшими миграциями должны быть добавлены полноценные
 назначения тестов, редактор вопросов, scheduled broadcast recipients, мягкое
 удаление, расширенный audit UI и Alembic baseline для уже существующих БД.
-
