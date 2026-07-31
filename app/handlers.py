@@ -4,7 +4,7 @@ from aiogram import F, Router, Bot
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo
-from app.config import MINI_APP_URL
+from app.fig import MINI_APP_URL
 from app.constants import ROLE_ADMIN, ROLE_EMPLOYEE, ROLE_SUPER_ADMIN
 from app.database import *
 from app.keyboards import *

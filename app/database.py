@@ -166,6 +166,7 @@ async def init_db() -> None:
         """)
         await _migrate(db)
         await _seed_achievements(db)
+
         await db.commit()
 
 
@@ -203,6 +204,7 @@ async def _seed_achievements(db: aiosqlite.Connection) -> None:
         ("five_tests", "Постоянство", "Завершить 5 тестов", "flame", "rare", 5),
     ]
     await db.executemany("INSERT OR IGNORE INTO achievements(code,name,description,icon,rarity,threshold) VALUES(?,?,?,?,?,?)", rows)
+
 
 
 async def fetchone(query: str, params: tuple[Any, ...] = ()): 

@@ -1,9 +1,11 @@
+
 FROM node:22-alpine AS frontend
 WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm install
 COPY frontend/ ./
 RUN npm run build
+
 
 FROM python:3.11-slim
 
@@ -17,4 +19,5 @@ COPY . .
 COPY --from=frontend /frontend/dist ./frontend/dist
 RUN mkdir -p /app/data
 EXPOSE 8000
+
 CMD ["python", "main.py"]
