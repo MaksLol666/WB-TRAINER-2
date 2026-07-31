@@ -17,9 +17,6 @@ from app.config import (
     runtime_configuration_summary,
     validate_runtime_configuration,
 )
-from app.database import init_db
-from app.handlers import router
-from app.services import import_questions
 
 
 logging.basicConfig(
