@@ -1,9 +1,10 @@
 import logging, random, time
 from html import escape
 from aiogram import F, Router, Bot
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, WebAppInfo
+from app.fig import MINI_APP_URL
 from app.constants import ROLE_ADMIN, ROLE_EMPLOYEE, ROLE_SUPER_ADMIN
 from app.database import *
 from app.keyboards import *
@@ -15,6 +16,9 @@ ROLE_LABELS={ROLE_SUPER_ADMIN:"Главный администратор",ROLE_A
 
 def display_user(u): return f"@{u[2]}" if u[2] else escape(u[3])
 def menu(role): return super_admin_menu() if role==ROLE_SUPER_ADMIN else admin_menu() if role==ROLE_ADMIN else employee_menu()
+def mini_app_keyboard():
+    if not MINI_APP_URL: return None
+    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🚀 Открыть WB TRAINER", web_app=WebAppInfo(url=MINI_APP_URL))]])
 def level(avg:int, tests:int): return "Эксперт ПВЗ" if tests>=20 and avg>=90 else "Опытный менеджер" if tests>=5 and avg>=80 else "Сотрудник" if tests else "Новичок"
 def achievements(results):
     tests=len(results); perfect=any(r[4]==100 for r in results); success=sum(1 for r in results if r[4]>=70)
@@ -32,8 +36,17 @@ async def start_command(message: Message, state: FSMContext):
     await ensure_super_admin_exists(message.from_user.id, message.from_user.full_name, message.from_user.username)
     user=await get_user(message.from_user.id)
     if user:
-        await state.clear(); await message.answer("🎓 <b>WB TRAINER v1.1</b>\n\nВыберите действие:", reply_markup=menu(user[4])); return
+        await state.clear(); await message.answer(f"🎓 <b>WB TRAINER</b>\n\nРоль: {ROLE_LABELS[user[4]]}\nОткройте приложение для обучения, прогресса и статистики.", reply_markup=mini_app_keyboard()); await message.answer("Резервное меню:", reply_markup=menu(user[4])); return
     await message.answer("🎓 <b>WB TRAINER</b>\n\nВведите код вашего ПВЗ:", reply_markup=registration_menu()); await state.set_state(RegisterState.waiting_invite_code)
+
+@router.message(Command("menu"))
+async def menu_command(message: Message, state: FSMContext):
+    user = await get_user(message.from_user.id)
+    if not user:
+        await start_command(message, state)
+        return
+    await state.clear()
+    await message.answer("Резервное меню WB TRAINER:", reply_markup=menu(user[4]))
 
 @router.message(RegisterState.waiting_invite_code)
 async def register_by_code(message: Message, state: FSMContext, bot: Bot):
@@ -43,7 +56,8 @@ async def register_by_code(message: Message, state: FSMContext, bot: Bot):
     if pvz[3]:
         try: await bot.send_message(pvz[3], f"👤 Новый сотрудник зарегистрирован в {escape(pvz[1])}: {escape(message.from_user.full_name)}")
         except Exception: log.exception("admin notification failed")
-    await message.answer(f"✅ Регистрация завершена!\n\n📍 ПВЗ: <b>{escape(pvz[1])}</b>", reply_markup=employee_menu())
+    await message.answer(f"✅ Регистрация завершена!\n\n📍 ПВЗ: <b>{escape(pvz[1])}</b>", reply_markup=mini_app_keyboard())
+    await message.answer("Если Mini App временно недоступен, используйте резервное меню:", reply_markup=employee_menu())
 
 @router.message(F.text == "➕ Создать ПВЗ")
 async def create_pvz_start(message: Message, state: FSMContext):

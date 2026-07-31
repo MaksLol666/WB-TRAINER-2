@@ -95,8 +95,78 @@ async def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_results_user ON results(user_id);
         CREATE INDEX IF NOT EXISTS idx_results_pvz ON results(pvz_id);
         CREATE INDEX IF NOT EXISTS idx_questions_category ON questions(category);
+        CREATE TABLE IF NOT EXISTS question_options(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            question_id INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+            text TEXT NOT NULL,
+            is_correct INTEGER NOT NULL DEFAULT 0 CHECK(is_correct IN (0,1)),
+            position INTEGER NOT NULL,
+            UNIQUE(question_id, position)
+        );
+        CREATE TABLE IF NOT EXISTS test_attempts(
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            status TEXT NOT NULL CHECK(status IN ('created','in_progress','completed','abandoned','expired')),
+            current_position INTEGER NOT NULL DEFAULT 0,
+            correct_count INTEGER NOT NULL DEFAULT 0,
+            total_questions INTEGER NOT NULL DEFAULT 30,
+            started_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            completed_at TEXT,
+            xp_awarded INTEGER NOT NULL DEFAULT 0,
+            version INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE TABLE IF NOT EXISTS test_attempt_questions(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            attempt_id TEXT NOT NULL REFERENCES test_attempts(id) ON DELETE CASCADE,
+            question_id INTEGER NOT NULL REFERENCES questions(id),
+            position INTEGER NOT NULL,
+            answered_at TEXT,
+            selected_option_id INTEGER REFERENCES question_options(id),
+            is_correct INTEGER,
+            response_seconds INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(attempt_id, position), UNIQUE(attempt_id, question_id)
+        );
+        CREATE TABLE IF NOT EXISTS xp_transactions(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            amount INTEGER NOT NULL,
+            reason TEXT NOT NULL,
+            attempt_id TEXT REFERENCES test_attempts(id),
+            achievement_code TEXT,
+            operation_type TEXT NOT NULL DEFAULT 'earn',
+            created_at TEXT NOT NULL,
+            UNIQUE(attempt_id, reason)
+        );
+        CREATE TABLE IF NOT EXISTS achievements(
+            code TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL,
+            icon TEXT NOT NULL, rarity TEXT NOT NULL, threshold INTEGER NOT NULL DEFAULT 1
+        );
+        CREATE TABLE IF NOT EXISTS user_achievements(
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            achievement_code TEXT NOT NULL REFERENCES achievements(code),
+            earned_at TEXT NOT NULL, PRIMARY KEY(user_id, achievement_code)
+        );
+        CREATE TABLE IF NOT EXISTS activity_streaks(
+            user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            current_streak INTEGER NOT NULL DEFAULT 0,
+            max_streak INTEGER NOT NULL DEFAULT 0,
+            last_activity_date TEXT
+        );
+        CREATE TABLE IF NOT EXISTS audit_log(
+            id INTEGER PRIMARY KEY AUTOINCREMENT, actor_user_id INTEGER REFERENCES users(id),
+            action TEXT NOT NULL, entity_type TEXT NOT NULL, entity_id TEXT,
+            details TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_attempts_user_status ON test_attempts(user_id,status);
+        CREATE INDEX IF NOT EXISTS idx_attempt_questions_attempt ON test_attempt_questions(attempt_id,position);
+        CREATE INDEX IF NOT EXISTS idx_options_question ON question_options(question_id);
+        CREATE INDEX IF NOT EXISTS idx_xp_user_created ON xp_transactions(user_id,created_at);
+        CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
         """)
         await _migrate(db)
+        await _seed_achievements(db)
+
         await db.commit()
 
 
@@ -115,6 +185,26 @@ async def _migrate(db: aiosqlite.Connection) -> None:
     qcols = await cols("questions")
     if "external_id" not in qcols:
         await db.execute("ALTER TABLE questions ADD COLUMN external_id TEXT")
+    ucols = await cols("users")
+    for col, ddl in {
+        "photo_url": "ALTER TABLE users ADD COLUMN photo_url TEXT",
+        "last_activity_at": "ALTER TABLE users ADD COLUMN last_activity_at TEXT",
+        "is_blocked": "ALTER TABLE users ADD COLUMN is_blocked INTEGER NOT NULL DEFAULT 0",
+    }.items():
+        if col not in ucols:
+            await db.execute(ddl)
+
+
+async def _seed_achievements(db: aiosqlite.Connection) -> None:
+    rows = [
+        ("first_test", "Первый шаг", "Завершить первый тест", "sparkles", "common", 1),
+        ("score_70", "Уверенный старт", "Набрать не менее 70%", "target", "common", 70),
+        ("score_90", "Знаток ПВЗ", "Набрать не менее 90%", "crown", "epic", 90),
+        ("perfect", "Безупречно", "Ответить правильно на 30 из 30", "diamond", "legendary", 100),
+        ("five_tests", "Постоянство", "Завершить 5 тестов", "flame", "rare", 5),
+    ]
+    await db.executemany("INSERT OR IGNORE INTO achievements(code,name,description,icon,rarity,threshold) VALUES(?,?,?,?,?,?)", rows)
+
 
 
 async def fetchone(query: str, params: tuple[Any, ...] = ()): 
