@@ -17,6 +17,7 @@ def _load_env_file() -> None:
 _load_env_file()
 
 TOKEN = os.getenv("BOT_TOKEN", "")
+BOT_ENABLED = os.getenv("BOT_ENABLED", "true").lower() in {"1", "true", "yes"}
 ADMINS = [
     int(admin_id)
     for admin_id in os.getenv("SUPER_ADMIN_IDS", os.getenv("ADMINS", "")).split(",")
@@ -37,3 +38,29 @@ if ENVIRONMENT == "production" and DEV_AUTH_ENABLED:
     raise RuntimeError("DEV_AUTH_ENABLED must be false in production")
 if ENVIRONMENT == "production" and MINI_APP_URL and not MINI_APP_URL.startswith("https://"):
     raise RuntimeError("MINI_APP_URL must use HTTPS in production")
+
+
+def validate_runtime_configuration() -> None:
+    """Reject a deployment that cannot provide the advertised Telegram bot."""
+    missing = []
+    if BOT_ENABLED and not TOKEN:
+        missing.append("BOT_TOKEN")
+    if ENVIRONMENT == "production" and BOT_ENABLED and not MINI_APP_URL:
+        missing.append("MINI_APP_URL")
+    if missing:
+        names = ", ".join(missing)
+        raise RuntimeError(
+            f"Missing required environment variables: {names}. "
+            "Configure them in the hosting service and redeploy. "
+            "Set BOT_ENABLED=false only for an intentional API-only deployment."
+        )
+
+
+def runtime_configuration_summary() -> str:
+    """Return safe startup diagnostics without exposing secret values."""
+    return (
+        f"environment={ENVIRONMENT} "
+        f"bot_enabled={BOT_ENABLED} "
+        f"bot_token_configured={bool(TOKEN)} "
+        f"mini_app_url_configured={bool(MINI_APP_URL)}"
+    )
