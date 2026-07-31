@@ -22,6 +22,7 @@ from app.handlers import router
 from app.services import import_questions
 
 
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",

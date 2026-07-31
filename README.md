@@ -133,6 +133,7 @@ diagnostics означают, что соответствующие переме
 Для рабочего production Mini App должны отображаться соответственно
 `environment=production` и `mini_app_url_configured=True`.
 
+
 Остальные значения из примера подходят для стандартного Docker deployment и
 обычно не требуют изменения. `BOT_TOKEN` и `SESSION_SECRET` нельзя отправлять в
 чат, добавлять в Git или указывать в настройках BotFather как URL. После изменения
