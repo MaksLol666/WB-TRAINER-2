@@ -9,10 +9,14 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from app.api import create_app
 from app.bot_setup import configure_bot_menu
-from app.config import BOT_ENABLED, TOKEN, WEBAPP_HOST, WEBAPP_PORT, validate_runtime_configuration
-from app.database import init_db
-from app.handlers import router
-from app.services import import_questions
+from app.config import (
+    BOT_ENABLED,
+    TOKEN,
+    WEBAPP_HOST,
+    WEBAPP_PORT,
+    runtime_configuration_summary,
+    validate_runtime_configuration,
+)
 
 
 logging.basicConfig(
@@ -43,6 +47,7 @@ async def run_bot() -> None:
 async def main() -> None:
     """Initialize shared data, then run the API and Telegram bot together."""
     logging.info("WB TRAINER API and bot are starting")
+    logging.info("runtime configuration: %s", runtime_configuration_summary())
     validate_runtime_configuration()
     await init_db()
     created, updated = await import_questions()

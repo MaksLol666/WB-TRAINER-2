@@ -29,3 +29,18 @@ def test_production_bot_requires_mini_app_url(monkeypatch):
 
     with pytest.raises(RuntimeError, match="MINI_APP_URL"):
         config.validate_runtime_configuration()
+
+def test_runtime_summary_reports_presence_without_leaking_secrets(monkeypatch):
+    monkeypatch.setattr(config, "BOT_ENABLED", True)
+    monkeypatch.setattr(config, "TOKEN", "secret-bot-token")
+    monkeypatch.setattr(config, "MINI_APP_URL", "https://trainer.example")
+    monkeypatch.setattr(config, "ENVIRONMENT", "production")
+
+    summary = config.runtime_configuration_summary()
+
+    assert "environment=production" in summary
+    assert "bot_enabled=True" in summary
+    assert "bot_token_configured=True" in summary
+    assert "mini_app_url_configured=True" in summary
+    assert "secret-bot-token" not in summary
+    assert "trainer.example" not in summary

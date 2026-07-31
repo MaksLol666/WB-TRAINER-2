@@ -54,3 +54,13 @@ def validate_runtime_configuration() -> None:
             "Configure them in the hosting service and redeploy. "
             "Set BOT_ENABLED=false only for an intentional API-only deployment."
         )
+
+
+def runtime_configuration_summary() -> str:
+    """Return safe startup diagnostics without exposing secret values."""
+    return (
+        f"environment={ENVIRONMENT} "
+        f"bot_enabled={BOT_ENABLED} "
+        f"bot_token_configured={bool(TOKEN)} "
+        f"mini_app_url_configured={bool(MINI_APP_URL)}"
+    )
