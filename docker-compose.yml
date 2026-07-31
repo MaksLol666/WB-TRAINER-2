@@ -1,0 +1,9 @@
+services:
+  wb-trainer-bot:
+    build: .
+    container_name: wb-trainer-bot
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
