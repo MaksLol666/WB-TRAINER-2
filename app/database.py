@@ -229,7 +229,18 @@ async def get_user_by_id(user_id: int): return await fetchone("SELECT id, telegr
 async def add_user(telegram_id: int, full_name: str, username: str | None, role: str, pvz_id: int | None):
     await execute("INSERT INTO users(telegram_id,username,full_name,role,pvz_id,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(telegram_id) DO UPDATE SET username=excluded.username, full_name=excluded.full_name", (telegram_id, username, full_name, role, pvz_id, now_iso()))
 async def ensure_super_admin_exists(telegram_id: int, full_name: str, username: str | None):
-    if is_super_admin(telegram_id) and await get_user(telegram_id) is None: await add_user(telegram_id, full_name, username, ROLE_SUPER_ADMIN, None)
+    if not is_super_admin(telegram_id):
+        return
+    user = await get_user(telegram_id)
+    if user is None:
+        await add_user(telegram_id, full_name, username, ROLE_SUPER_ADMIN, None)
+        return
+    # A super admin may already have been registered as an employee before
+    # SUPER_ADMIN_IDS was configured. Promote that existing row as well.
+    await execute(
+        "UPDATE users SET username=?, full_name=?, role=?, pvz_id=NULL WHERE telegram_id=?",
+        (username, full_name, ROLE_SUPER_ADMIN, telegram_id),
+    )
 async def get_all_users(): return await fetchall("SELECT id,telegram_id,username,full_name,role,pvz_id,created_at FROM users ORDER BY id")
 async def get_all_admins(): return await fetchall("SELECT id,telegram_id,username,full_name,role,pvz_id,created_at FROM users WHERE role=? ORDER BY id", (ROLE_ADMIN,))
 async def get_pvz_users(pvz_id: int): return await fetchall("SELECT id,telegram_id,username,full_name,role,pvz_id,created_at FROM users WHERE pvz_id=? ORDER BY id", (pvz_id,))

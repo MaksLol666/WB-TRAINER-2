@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from app.config import CORS_ORIGINS, DATABASE, DEV_AUTH_ENABLED, ENVIRONMENT
 from app.constants import ROLE_ADMIN, ROLE_SUPER_ADMIN
-from app.database import add_user, get_user, is_super_admin, now_iso
+from app.database import add_user, ensure_super_admin_exists, get_user, is_super_admin, now_iso
 from app.services import answer_question, attempt_result, get_current_question, import_questions, next_question, start_attempt
 from app.telegram_auth import AuthError, create_session, validate_init_data, verify_session
 
@@ -48,6 +48,7 @@ def create_app() -> FastAPI:
     async def telegram_auth(body: AuthRequest):
         try: identity = validate_init_data(body.init_data)
         except AuthError as exc: raise HTTPException(401, detail=str(exc)) from exc
+        await ensure_super_admin_exists(identity.telegram_id, identity.full_name, identity.username)
         existing = await get_user(identity.telegram_id)
         role = ROLE_SUPER_ADMIN if is_super_admin(identity.telegram_id) else "employee"
         if not existing: await add_user(identity.telegram_id, identity.full_name, identity.username, role, None)

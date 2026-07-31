@@ -74,6 +74,8 @@ cp .env.example .env
 Обязательные production-значения:
 
 - `BOT_TOKEN` — token от BotFather;
+- `BOT_ENABLED=true` — запуск Telegram polling (значение `false` допустимо только
+  для намеренного API-only режима);
 - `SUPER_ADMIN_IDS` — Telegram ID через запятую;
 - `DATABASE_URL=sqlite+aiosqlite:///data/wb_trainer.db`;
 - `MINI_APP_URL` — публичный HTTPS URL;
@@ -85,6 +87,52 @@ cp .env.example .env
 `DEV_AUTH_ENABLED=true` допустим только локально. Приложение откажется стартовать
 с dev-auth в production.
 
+Из значений в `.env.example` владелец deployment обязательно заменяет только:
+
+- `BOT_TOKEN` — на секретный token именно того бота, который открывается в
+  Telegram;
+- `SUPER_ADMIN_IDS` — на свой числовой Telegram ID (несколько ID разделяются
+  запятыми);
+- `MINI_APP_URL` и `CORS_ORIGINS` — на фактический публичный HTTPS-домен сервиса,
+  без пути к панели управления хостингом;
+- `SESSION_SECRET` — на отдельную случайную строку; это не token Telegram-бота.
+
+Создать `SESSION_SECRET` можно любой одной из команд (в зависимости от системы):
+
+```bash
+# Linux/macOS, если команда Python называется python3
+python3 -c 'import secrets; print(secrets.token_urlsafe(48))'
+
+# Windows PowerShell или cmd с Python Launcher
+py -c "import secrets; print(secrets.token_urlsafe(48))"
+
+# Linux/macOS с OpenSSL, Python не требуется
+openssl rand -base64 48
+```
+
+В настройку `SESSION_SECRET` нужно вставить только напечатанную строку, без
+кавычек и без самой команды. Если у хостинга нет терминала, выполните команду на
+своём компьютере: секрет не зависит от сервера. После первого production-запуска
+не меняйте его без необходимости — уже выданные сессии Mini App станут
+недействительными.
+
+При корректном запуске новая версия выводит безопасную строку диагностики без
+самих секретов, например:
+
+```text
+runtime configuration: environment=production bot_enabled=True bot_token_configured=True mini_app_url_configured=True
+```
+
+Если в логах по-прежнему присутствует старое сообщение `BOT_TOKEN is empty; API
+starts without Telegram polling` и отсутствует строка `runtime configuration`,
+хостинг запускает старый image/commit. Нужно проверить ветку deployment, получить
+последний commit и запустить rebuild без build cache.
+
+Остальные значения из примера подходят для стандартного Docker deployment и
+обычно не требуют изменения. `BOT_TOKEN` и `SESSION_SECRET` нельзя отправлять в
+чат, добавлять в Git или указывать в настройках BotFather как URL. После изменения
+переменных окружения сервис необходимо пересобрать или перезапустить.
+
 ## Запуск через Docker
 
 ```bash
@@ -95,6 +143,10 @@ curl http://localhost:8000/health
 
 При старте создаются совместимые таблицы, синхронизируются вопросы, запускаются
 FastAPI и polling бота. Mini App доступен на порту 8000.
+
+Если `BOT_ENABLED=true`, сервис теперь завершает запуск с понятной ошибкой при
+отсутствующем `BOT_TOKEN` (а в production также `MINI_APP_URL`). Это исключает
+ложно успешный деплой, в котором API работает, но бот не получает обновления.
 
 ## Локальная разработка
 
@@ -143,6 +195,11 @@ npm run dev
 3. Передайте сотруднику созданный invite-код.
 4. Сотрудник отправляет `/start`, вводит код и затем открывает Mini App.
 
+Если супер-администратор успел отправить `/start` до настройки
+`SUPER_ADMIN_IDS`, повторная команда `/start` автоматически повысит существующую
+учётную запись до главного администратора. После этого появится кнопка
+«➕ Создать ПВЗ»; вводить код ещё не существующего ПВЗ не требуется.
+
 Legacy-модель пока назначает одного admin одному ПВЗ. Нормализация
 `pvz_members/admin_permissions` остаётся следующим совместимым migration этапом.
 
@@ -182,4 +239,3 @@ docker compose start wb-trainer-bot
 путь. Следующими небольшими миграциями должны быть добавлены полноценные
 назначения тестов, редактор вопросов, scheduled broadcast recipients, мягкое
 удаление, расширенный audit UI и Alembic baseline для уже существующих БД.
-
