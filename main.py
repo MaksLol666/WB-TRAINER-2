@@ -7,6 +7,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
+from app import database
 from app.api import create_app
 from app.bot_setup import configure_bot_menu
 from app.config import (
@@ -17,6 +18,9 @@ from app.config import (
     runtime_configuration_summary,
     validate_runtime_configuration,
 )
+from app.handlers import router
+from app.services import import_questions
+
 
 
 logging.basicConfig(
@@ -49,7 +53,7 @@ async def main() -> None:
     logging.info("WB TRAINER API and bot are starting")
     logging.info("runtime configuration: %s", runtime_configuration_summary())
     validate_runtime_configuration()
-    await init_db()
+    await database.init_db()
     created, updated = await import_questions()
     logging.info(
         "question bank synchronized: created=%s updated=%s", created, updated
