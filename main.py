@@ -1,19 +1,18 @@
 import asyncio
 import logging
 
+import uvicorn
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from app.config import TOKEN
-from app.database import init_db
-from app.handlers import rou
 from app.api import create_app
 from app.bot_setup import configure_bot_menu
-from app.config import WEBAPP_HOST, WEBAPP_PORT
+from app.config import TOKEN, WEBAPP_HOST, WEBAPP_PORT
+from app.database import init_db
+from app.handlers import router
 from app.services import import_questions
-import uvicorn
 
 
 logging.basicConfig(
@@ -22,42 +21,43 @@ logging.basicConfig(
 )
 
 
-async def run_bot():
+async def run_bot() -> None:
+    """Run Telegram polling when a bot token has been configured."""
     if not TOKEN:
         logging.warning("BOT_TOKEN is empty; API starts without Telegram polling")
         return
-    bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dp = Dispatcher(storage=MemoryStorage()); dp.include_router(router)
-    try:
-        await configure_bot_menu(bot)
-        await dp.start_polling(bot)
-    finally:
-        await bot.session.close()
-
-
-async def main():
-    print("🚀 WB TRAINER API и бот запускаются...")
-    await init_db()
-    created, updated = await import_questions()
-    logging.info("question bank synchronized: created=%s updated=%s", created, updated)
-    server = uvicorn.Server(uvicorn.Config(create_app(), host=WEBAPP_HOST, port=WEBAPP_PORT, log_level="info"))
-    await asyncio.gather(server.serve(), run_bot())
-
-async def main():
-    if not TOKEN:
-        raise RuntimeError("BOT_TOKEN environment variable is required")
 
     bot = Bot(
         token=TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    dp = Dispatcher(storage=MemoryStorage())
-    dp.include_router(router)
+    dispatcher = Dispatcher(storage=MemoryStorage())
+    dispatcher.include_router(router)
+    try:
+        await configure_bot_menu(bot)
+        await dispatcher.start_polling(bot)
+    finally:
+        await bot.session.close()
 
-    print("🚀 WB TRAINER запускается...")
+
+async def main() -> None:
+    """Initialize shared data, then run the API and Telegram bot together."""
+    logging.info("WB TRAINER API and bot are starting")
     await init_db()
-    print("✅ База данных готова")
-    await dp.start_polling(bot)
+    created, updated = await import_questions()
+    logging.info(
+        "question bank synchronized: created=%s updated=%s", created, updated
+    )
+
+    server = uvicorn.Server(
+        uvicorn.Config(
+            create_app(),
+            host=WEBAPP_HOST,
+            port=WEBAPP_PORT,
+            log_level="info",
+        )
+    )
+    await asyncio.gather(server.serve(), run_bot())
 
 
 if __name__ == "__main__":
