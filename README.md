@@ -75,7 +75,9 @@ cp .env.example .env
 
 - `BOT_TOKEN` — token от BotFather;
 - `BOT_ENABLED=true` — запуск Telegram polling (значение `false` допустимо только
-  для намеренного API-only режима);
+  для намеренного API-only режима; `BOT_TOKEN` всё равно необходим для
+  аутентификации Telegram Mini App). Допустимые значения: `true`, `false`, `1`,
+  `0`, `yes`, `no`; другие значения останавливают запуск как ошибка конфигурации;
 - `SUPER_ADMIN_IDS` — Telegram ID через запятую;
 - `DATABASE_URL=sqlite+aiosqlite:///data/wb_trainer.db`;
 - `MINI_APP_URL` — публичный HTTPS URL;
@@ -144,8 +146,8 @@ curl http://localhost:8000/health
 При старте создаются совместимые таблицы, синхронизируются вопросы, запускаются
 FastAPI и polling бота. Mini App доступен на порту 8000.
 
-Если `BOT_ENABLED=true`, сервис теперь завершает запуск с понятной ошибкой при
-отсутствующем `BOT_TOKEN` (а в production также `MINI_APP_URL`). Это исключает
+Сервис теперь всегда завершает запуск с понятной ошибкой при отсутствующем
+`BOT_TOKEN` (а при `BOT_ENABLED=true` в production также `MINI_APP_URL`). Это исключает
 ложно успешный деплой, в котором API работает, но бот не получает обновления.
 
 ## Локальная разработка
