@@ -16,8 +16,21 @@ def _load_env_file() -> None:
 
 _load_env_file()
 
+
+def _parse_boolean_environment_variable(name: str, default: str) -> bool:
+    """Parse a boolean environment variable and reject ambiguous values."""
+    value = os.getenv(name, default).strip().lower()
+    if value in {"1", "true", "yes"}:
+        return True
+    if value in {"0", "false", "no"}:
+        return False
+    raise RuntimeError(
+        f"{name} must be one of: true, false, 1, 0, yes, no (got {value!r})"
+    )
+
+
 TOKEN = os.getenv("BOT_TOKEN", "")
-BOT_ENABLED = os.getenv("BOT_ENABLED", "true").lower() in {"1", "true", "yes"}
+BOT_ENABLED = _parse_boolean_environment_variable("BOT_ENABLED", "true")
 ADMINS = [
     int(admin_id)
     for admin_id in os.getenv("SUPER_ADMIN_IDS", os.getenv("ADMINS", "")).split(",")
@@ -41,9 +54,11 @@ if ENVIRONMENT == "production" and MINI_APP_URL and not MINI_APP_URL.startswith(
 
 
 def validate_runtime_configuration() -> None:
-    """Reject a deployment that cannot provide the advertised Telegram bot."""
+    """Reject a deployment that cannot provide Telegram authentication."""
     missing = []
-    if BOT_ENABLED and not TOKEN:
+    # Telegram Mini App authentication always verifies initData with the bot
+    # token, even when polling is intentionally disabled.
+    if not TOKEN:
         missing.append("BOT_TOKEN")
     if ENVIRONMENT == "production" and BOT_ENABLED and not MINI_APP_URL:
         missing.append("MINI_APP_URL")
@@ -52,7 +67,7 @@ def validate_runtime_configuration() -> None:
         raise RuntimeError(
             f"Missing required environment variables: {names}. "
             "Configure them in the hosting service and redeploy. "
-            "Set BOT_ENABLED=false only for an intentional API-only deployment."
+            "BOT_ENABLED=false disables polling but does not disable Telegram authentication."
         )
 
 
