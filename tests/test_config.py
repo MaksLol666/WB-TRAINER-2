@@ -3,6 +3,20 @@ import pytest
 from app import config
 
 
+@pytest.mark.parametrize("value", ["false", "0", "no", " FALSE "])
+def test_bot_enabled_accepts_explicit_false_values(monkeypatch, value):
+    monkeypatch.setenv("BOT_ENABLED", value)
+
+    assert config._parse_boolean("BOT_ENABLED", "true") is False
+
+
+def test_bot_enabled_rejects_invalid_values(monkeypatch):
+    monkeypatch.setenv("BOT_ENABLED", "treu")
+
+    with pytest.raises(RuntimeError, match="BOT_ENABLED must be one of"):
+        config._parse_boolean("BOT_ENABLED", "true")
+
+
 def test_bot_token_is_required_when_bot_is_enabled(monkeypatch):
     monkeypatch.setattr(config, "BOT_ENABLED", True)
     monkeypatch.setattr(config, "TOKEN", "")
@@ -10,6 +24,7 @@ def test_bot_token_is_required_when_bot_is_enabled(monkeypatch):
 
     with pytest.raises(RuntimeError, match="BOT_TOKEN"):
         config.validate_runtime_configuration()
+
 
 
 def test_api_only_mode_still_requires_bot_token_for_authentication(monkeypatch):
@@ -20,6 +35,7 @@ def test_api_only_mode_still_requires_bot_token_for_authentication(monkeypatch):
 
     with pytest.raises(RuntimeError, match="BOT_TOKEN"):
         config.validate_runtime_configuration()
+
 
 
 @pytest.mark.parametrize(
@@ -46,6 +62,8 @@ def test_bot_enabled_rejects_unrecognized_value(monkeypatch):
 
     with pytest.raises(RuntimeError, match="BOT_ENABLED must be one of"):
         config._parse_boolean_environment_variable("BOT_ENABLED", "true")
+.validate_runtime_configuration()
+
 
 
 def test_production_bot_requires_mini_app_url(monkeypatch):

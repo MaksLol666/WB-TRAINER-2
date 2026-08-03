@@ -78,9 +78,13 @@ cp .env.example .env
   для намеренного API-only режима; `BOT_TOKEN` всё равно необходим для
   аутентификации Telegram Mini App). Допустимые значения: `true`, `false`, `1`,
   `0`, `yes`, `no`; другие значения останавливают запуск как ошибка конфигурации;
+
+  для намеренного API-only режима и отключает лишь polling, поэтому `BOT_TOKEN`
+  всё равно обязателен для авторизации Telegram Mini App);
 - `SUPER_ADMIN_IDS` — Telegram ID через запятую;
 - `DATABASE_URL=sqlite+aiosqlite:///data/wb_trainer.db`;
-- `MINI_APP_URL` — публичный HTTPS URL;
+- `MINI_APP_URL` — публичный HTTPS URL (обязателен в production при
+  `BOT_ENABLED=true`);
 - `SESSION_SECRET` — длинная случайная строка;
 - `ENVIRONMENT=production`;
 - `CORS_ORIGINS` — разрешённые HTTPS origins;
@@ -130,6 +134,12 @@ starts without Telegram polling` и отсутствует строка `runtime
 хостинг запускает старый image/commit. Нужно проверить ветку deployment, получить
 последний commit и запустить rebuild без build cache.
 
+Значения `environment=development` или `mini_app_url_configured=False` в runtime
+diagnostics означают, что соответствующие переменные не были переданы контейнеру.
+Для рабочего production Mini App должны отображаться соответственно
+`environment=production` и `mini_app_url_configured=True`.
+
+
 Остальные значения из примера подходят для стандартного Docker deployment и
 обычно не требуют изменения. `BOT_TOKEN` и `SESSION_SECRET` нельзя отправлять в
 чат, добавлять в Git или указывать в настройках BotFather как URL. После изменения
@@ -146,9 +156,11 @@ curl http://localhost:8000/health
 При старте создаются совместимые таблицы, синхронизируются вопросы, запускаются
 FastAPI и polling бота. Mini App доступен на порту 8000.
 
+
 Сервис теперь всегда завершает запуск с понятной ошибкой при отсутствующем
 `BOT_TOKEN` (а при `BOT_ENABLED=true` в production также `MINI_APP_URL`). Это исключает
 ложно успешный деплой, в котором API работает, но бот не получает обновления.
+
 
 ## Локальная разработка
 
