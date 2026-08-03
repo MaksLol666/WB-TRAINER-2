@@ -3,6 +3,20 @@ import pytest
 from app import config
 
 
+@pytest.mark.parametrize("value", ["false", "0", "no", " FALSE "])
+def test_bot_enabled_accepts_explicit_false_values(monkeypatch, value):
+    monkeypatch.setenv("BOT_ENABLED", value)
+
+    assert config._parse_boolean("BOT_ENABLED", "true") is False
+
+
+def test_bot_enabled_rejects_invalid_values(monkeypatch):
+    monkeypatch.setenv("BOT_ENABLED", "treu")
+
+    with pytest.raises(RuntimeError, match="BOT_ENABLED must be one of"):
+        config._parse_boolean("BOT_ENABLED", "true")
+
+
 def test_bot_token_is_required_when_bot_is_enabled(monkeypatch):
     monkeypatch.setattr(config, "BOT_ENABLED", True)
     monkeypatch.setattr(config, "TOKEN", "")
@@ -12,9 +26,19 @@ def test_bot_token_is_required_when_bot_is_enabled(monkeypatch):
         config.validate_runtime_configuration()
 
 
-def test_api_only_mode_does_not_require_telegram_settings(monkeypatch):
+def test_api_only_mode_still_requires_bot_token(monkeypatch):
     monkeypatch.setattr(config, "BOT_ENABLED", False)
     monkeypatch.setattr(config, "TOKEN", "")
+    monkeypatch.setattr(config, "MINI_APP_URL", "")
+    monkeypatch.setattr(config, "ENVIRONMENT", "production")
+
+    with pytest.raises(RuntimeError, match="BOT_TOKEN"):
+        config.validate_runtime_configuration()
+
+
+def test_api_only_mode_does_not_require_mini_app_url(monkeypatch):
+    monkeypatch.setattr(config, "BOT_ENABLED", False)
+    monkeypatch.setattr(config, "TOKEN", "valid-token")
     monkeypatch.setattr(config, "MINI_APP_URL", "")
     monkeypatch.setattr(config, "ENVIRONMENT", "production")
 

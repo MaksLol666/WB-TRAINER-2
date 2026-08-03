@@ -75,10 +75,12 @@ cp .env.example .env
 
 - `BOT_TOKEN` — token от BotFather;
 - `BOT_ENABLED=true` — запуск Telegram polling (значение `false` допустимо только
-  для намеренного API-only режима);
+  для намеренного API-only режима и отключает лишь polling, поэтому `BOT_TOKEN`
+  всё равно обязателен для авторизации Telegram Mini App);
 - `SUPER_ADMIN_IDS` — Telegram ID через запятую;
 - `DATABASE_URL=sqlite+aiosqlite:///data/wb_trainer.db`;
-- `MINI_APP_URL` — публичный HTTPS URL;
+- `MINI_APP_URL` — публичный HTTPS URL (обязателен в production при
+  `BOT_ENABLED=true`);
 - `SESSION_SECRET` — длинная случайная строка;
 - `ENVIRONMENT=production`;
 - `CORS_ORIGINS` — разрешённые HTTPS origins;
@@ -150,9 +152,11 @@ curl http://localhost:8000/health
 При старте создаются совместимые таблицы, синхронизируются вопросы, запускаются
 FastAPI и polling бота. Mini App доступен на порту 8000.
 
-Если `BOT_ENABLED=true`, сервис теперь завершает запуск с понятной ошибкой при
-отсутствующем `BOT_TOKEN` (а в production также `MINI_APP_URL`). Это исключает
-ложно успешный деплой, в котором API работает, но бот не получает обновления.
+Сервис теперь завершает запуск с понятной ошибкой при отсутствующем `BOT_TOKEN`;
+если `BOT_ENABLED=true`, в production также обязателен `MINI_APP_URL`. Это исключает
+ложно успешный деплой, в котором API проходит healthcheck, но Telegram-вход не
+работает. `BOT_ENABLED` принимает только явные значения `true`/`false`, `1`/`0`
+или `yes`/`no`; опечатка также останавливает запуск.
 
 ## Локальная разработка
 
